@@ -1,0 +1,12 @@
+{
+  "name": "search_ranking_checker_on_aws_lambda",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "chimame",
+  "license": "MIT",
+  "dependencies": {
+    "@serverless-chrome/lambda": "^1.0.0-49",
+    "chrome-remote-interface": "^0.25.6",
+    "puppeteer": "1.4.0"
+  }
+}
