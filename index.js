@@ -22,28 +22,42 @@ exports.handler = async (event, context, callback) => {
     browser = await puppeteer.connect({ 
       browserWSEndpoint: (await CDP.Version()).webSocketDebuggerUrl 
     })
-    page = await browser.newPage()
+    const context = browser.defaultBrowserContext();
 
-    // ブラウザ操作
-    await page.goto(`https://www.google.co.jp/search?q=${event.searchWord}`, { waitUntil: 'domcontentloaded' })
+    // 初期設定
+    await context.overridePermissions('https://www.google.co.jp', ['geolocation'])
+    const page = await context.newPage()
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'ja' })
+    await page.setUserAgent('Mozilla/5.0 (iPhone; CPU iPhone OS 11_0 like Mac OS X) AppleWebKit/604.1.38 (KHTML, like Gecko) Version/11.0 Mobile/15A372 Safari/604.1')
+    await page.goto(`https://www.google.co.jp/`, { waitUntil: 'networkidle0' })
+    // ロケーション許可して疑似ロケーションで上書き
+    await context.overridePermissions('https://www.google.co.jp', ['geolocation'])
+    await page.setGeolocation({ longitude: event.longitude, latitude: event.latitude, accuracy: 50 })
 
-    const siteRanking = await page.evaluate((siteDomain) => {
-      let ranking = 1
-      let ret = 0
-      const nodeList = document.querySelectorAll("div#search h3")
-
-      nodeList.forEach(node => {
-        const link = node.getElementsByTagName('a')[0]
-        if (ret === 0 && link['href'].includes(siteDomain)) {
-          ret = ranking
-        }
-        ranking += 1
-      })
-
-      return ret
-    }, event.siteDomain)
-
-    return callback(null, JSON.stringify({ result: 'OK', siteRanking: siteRanking }))
+    // 検索操作
+    const searchWord = encodeURIComponent(event.searchWord)
+    await page.goto(`https://www.google.co.jp/search?q=${searchWord}`, { waitUntil: 'domcontentloaded' })
+    try {
+        const location = await page.evaluate(() => new Promise(resolve => navigator.geolocation.getCurrentPosition(position => {
+            resolve({latitude: position.coords.latitude, longitude: position.coords.longitude});
+        })))
+        console.log(location)
+    } catch (positionError) {
+        console.error(positionError)
+    }
+    // Webフォントを適用して豆腐を回避
+    await page.evaluate(() => {
+        var style = document.createElement('style')
+        style.textContent = `
+            @import url('//fonts.googleapis.com/css?family=Source+Code+Pro');
+            @import url('//fonts.googleapis.com/earlyaccess/notosansjp.css');
+            div, input, a{ font-family: 'Noto Sans JP', sans-serif !important; };`
+        document.head.appendChild(style)
+    })
+    await page.waitFor(1000) // ちょっとダサ
+    const screenShot = await page.screenshot({fullPage: true});
+    await page.waitFor(1000)
+    return callback(null, screenShot.toString('hex'))
   } catch (err) {
     console.error(err)
     return callback(null, JSON.stringify({ result: 'NG' }))
