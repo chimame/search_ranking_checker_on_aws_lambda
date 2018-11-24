@@ -5,8 +5,8 @@
   "author": "chimame",
   "license": "MIT",
   "dependencies": {
-    "@serverless-chrome/lambda": "^1.0.0-49",
-    "chrome-remote-interface": "^0.25.6",
-    "puppeteer": "1.4.0"
+    "@serverless-chrome/lambda": "^1.0.0-55",
+    "chrome-remote-interface": "^0.26.1",
+    "puppeteer": "1.8.0"
   }
 }
